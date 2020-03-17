@@ -801,14 +801,14 @@
 
       end subroutine init_fdist3d_003
 !
-      subroutine dist3d_003(this,part3d,npp,fd)
+      subroutine dist3d_003(this,part3d,npp,fd)!子程序，可改变调用参数值、全局变量的值，可有任意返回值
       
-         implicit none
+         implicit none ! Require all variables to be explicitly declared
          
-         class(fdist3d_003), intent(inout) :: this
-         real, dimension(:,:), pointer, intent(inout) :: part3d
+         class(fdist3d_003), intent(inout) :: this !class关键词实现动态绑定，inout提供/返回数据
+         real, dimension(:,:), pointer, intent(inout) :: part3d !part3d可指向实型目标变量
          integer, intent(inout) :: npp
-         class(ufield3d), intent(in), pointer :: fd
+         class(ufield3d), intent(in), pointer :: fd !输入参数
 ! local data1
 
 ! edges(1) = lower boundary in y of particle partition
@@ -816,23 +816,23 @@
 ! edges(3) = lower boundary in z of particle partition
 ! edges(4) = upper boundary in z of particle partition
          real, dimension(:,:), pointer :: part
-         integer :: npt, nx, ny, nz, ipbc, i
-         real :: x0, y0, z0, dx, dy, dz, cwp
+         integer :: npt, nx, ny, nz, ipbc, i !npt? ipbc?
+         real :: x0, y0, z0, dx, dy, dz, cwp !c/wp;xyz[um];vxvyvz[gamma*v/c]
          real, dimension(4) :: edges
-         integer, dimension(2) :: noff
-         integer :: nps
-         integer :: idimp, npmax, ierr
-         real tempx, tempy, tempz, tempvx, tempvy, tempvz, tempq
-         character(len=18), save :: sname = 'dist3d_003:'
+         integer, dimension(2) :: noff !?
+         integer :: nps !?
+         integer :: idimp, npmax, ierr !idimp:
+         real tempx, tempy, tempz, tempvx, tempvy, tempvz, tempq !电荷密度
+         character(len=18), save :: sname = 'dist3d_003:' !len最大长度
 
-         call this%err%werrfl2(class//sname//' started')
+         call this%err%werrfl2(class//sname//' started') !werrfl2? 合并
 
-         nps = 1
+         nps = 1 
          ierr = 0
          npt = this%npt
          nx = fd%getnd1(); ny = fd%getnd2(); nz = fd%getnd3()
-         ipbc = this%sp%getpsolver()
-         part => part3d
+         ipbc = this%sp%getpsolver() !?
+         part => part3d 
          x0 = this%bcx; y0 = this%bcy; z0 = this%bcz
          dx = this%dx; dy = this%dy; dz = this%dz; cwp = this%cwp
          idimp = size(part3d,1); npmax = size(part3d,2)
@@ -841,19 +841,19 @@
          edges(2) = edges(1) + fd%getnd2p()
          edges(4) = edges(3) + fd%getnd3p()         
          
-         open(unit=85,file=trim(this%file),status='old',action='read')
+         open(unit=85,file=trim(this%file),status='old',action='read') !返回字符串尾端多余空格清除后的字符串
          
          do i = 1, npt
          
-            read(85,*,iostat=ierr) tempz,tempx,tempy,tempvz,tempvx,tempvy,tempq
+            read(85,*,iostat=ierr) tempz,tempx,tempy,tempvz,tempvx,tempvy,tempq !isotat的值用于判断输入成功否。
             
             tempx = tempx/cwp/dx + x0
             tempy = tempy/cwp/dy + y0
             tempz = -tempz/cwp/dz
 
-            if ((tempx>=1) .and. tempx<=(nx-1) .and. (tempy >= edges(1))&
-            & .and. (tempy < edges(2)) .and. (tempz >= edges(3)) .and. (t&
-            &empz < edges(4))) then
+            if ((tempx>=1) .and. tempx<=(nx-1) .and. (tempy >= edges(1))& !是用来判断粒子是否属于当前这个分区的。
+            & .and. (tempy < edges(2)) .and. (tempz >= edges(3)) .and. (t& !因为是并行程序，每个核负责空间里面的一块儿
+            &empz < edges(4))) then !读进来一个粒子，要判断这个粒子是否位于当前这个核所负责的区域，在就留下，不在就读下一个粒子。
               part(1,nps) = tempx
               part(4,nps) = tempvx
               part(2,nps) = tempy
