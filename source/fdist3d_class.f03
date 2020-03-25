@@ -35,9 +35,9 @@
          generic :: new => init_fdist3d         
          generic :: del => end_fdist3d
          generic :: dist => dist3d
-         procedure(ab_init_fdist3d), deferred, private :: init_fdist3d
+         procedure(ab_init_fdist3d), deferred, private :: init_fdist3d !输入文件写参数
          procedure, private :: end_fdist3d
-         procedure(ab_dist3d), deferred, private :: dist3d
+         procedure(ab_dist3d), deferred, private :: dist3d !粒子初始化
          procedure :: getnpf, getnpmax, getevol
                   
       end type 
@@ -69,15 +69,15 @@
 ! Tri Gaussian profile (the same particle charge)
          private
 
-         integer :: npx, npy, npz
-         real :: qm, sigx, sigy, sigz
-         real :: bcx, bcy, bcz, sigvx, sigvy, sigvz
-         real :: cx1,cx2,cx3,cy1,cy2,cy3,gamma,np
-         logical :: quiet
+         integer :: npx, npy, npz !粒子数
+         real :: qm, sigx, sigy, sigz !荷质比
+         real :: bcx, bcy, bcz, sigvx, sigvy, sigvz !beam center,vz 能散
+         real :: cx1,cx2,cx3,cy1,cy2,cy3,gamma,np !重心 不稳定性 重心能量 
+         logical :: quiet !减少数值噪声
 
          contains
          procedure, private :: init_fdist3d => init_fdist3d_000
-         procedure, private :: dist3d => dist3d_000
+         procedure, private :: dist3d => dist3d_000 !赋值
 
       end type fdist3d_000
 !
@@ -89,7 +89,7 @@
          real :: qm, sigx, sigy
          real :: bcx, bcy, bcz, sigvx, sigvy, sigvz
          real :: cx1,cx2,cx3,cy1,cy2,cy3,gamma,np
-         real, dimension(:), allocatable :: fz, z
+         real, dimension(:), allocatable :: fz, z !分段分布
          logical :: quiet
 
          contains
@@ -122,7 +122,7 @@
 
          integer :: npt
          real :: bcx, bcy, bcz, dx, dy, dz, cwp
-         character(len=:), allocatable :: file
+         character(len=:), allocatable :: file !文件名
 
          contains
          procedure, private :: init_fdist3d => init_fdist3d_003
@@ -196,7 +196,7 @@
                   
       end subroutine end_fdist3d
 !
-      subroutine init_fdist3d_000(this,input,i)
+      subroutine init_fdist3d_000(this,input,i) !000读参数
       
          implicit none
          
@@ -221,7 +221,7 @@
          call this%err%werrfl2(class//sname//' started')
 
          write (sn,'(I3.3)') i
-         s1 = 'beam('//trim(sn)//')'
+         s1 = 'beam('//trim(sn)//')' ！几个beam
 
          call input%get('simulation.n0',n0)
          call input%get('simulation.indx',indx)
@@ -248,7 +248,7 @@
          alz = (max-min) 
          dz=alz/real(2**indz)
 
-         call input%get(trim(s1)//'.profile',npf)
+         call input%get(trim(s1)//'.profile',npf) !从输入文件读
          call input%get(trim(s1)//'.np(1)',npx)
          call input%get(trim(s1)//'.np(2)',npy)
          call input%get(trim(s1)//'.np(3)',npz)
@@ -273,7 +273,7 @@
 
 
 
-         this%npf = npf
+         this%npf = npf !单位变换
          this%npx = npx
          this%npy = npy
          this%npz = npz
@@ -763,7 +763,7 @@
          this%cwp = cwp
          call input%get('simulation.box.x(1)',min)
          call input%get('simulation.box.x(2)',max)
-         call input%get(trim(s1)//'.center(1)',bcx)
+         call input%get(trim(s1)//'.center(1)',bcx) !beam center
          bcx = bcx - min
          alx = (max-min) 
          dx=alx/real(2**indx)
@@ -781,15 +781,15 @@
          dz=alz/real(2**indz)
 
          call input%get(trim(s1)//'.profile',npf)
-         call input%get(trim(s1)//'.np',npt)
-         call input%get(trim(s1)//'.npmax',npmax)
-         call input%get(trim(s1)//'.evolution',evol)
+         call input%get(trim(s1)//'.np',npt) !npt多少粒子
+         call input%get(trim(s1)//'.npmax',npmax)!与并行核有关，动态分配内存会产生内存碎片，程序运算很慢/一开始内存取好，尽量去大一点
+         call input%get(trim(s1)//'.evolution',evol)!beam shape等不变，粒子不变
          call input%get(trim(s1)//'.file_name',this%file)
 
          this%npf = npf
          this%npt = npt
          this%npmax = npmax
-         this%bcx = bcx/dx
+         this%bcx = bcx/dx !cell size归一化
          this%bcy = bcy/dy
          this%bcz = bcz/dz
          this%dx = dx
@@ -829,11 +829,11 @@
 
          nps = 1 
          ierr = 0
-         npt = this%npt
+         npt = this%npt !total number
          nx = fd%getnd1(); ny = fd%getnd2(); nz = fd%getnd3()
          ipbc = this%sp%getpsolver() !?
          part => part3d 
-         x0 = this%bcx; y0 = this%bcy; z0 = this%bcz
+         x0 = this%bcx; y0 = this%bcy; z0 = this%bcz !beam center/box center?
          dx = this%dx; dy = this%dy; dz = this%dz; cwp = this%cwp
          idimp = size(part3d,1); npmax = size(part3d,2)
          noff = fd%getnoff()
@@ -849,7 +849,7 @@
             
             tempx = tempx/cwp/dx + x0
             tempy = tempy/cwp/dy + y0
-            tempz = -tempz/cwp/dz
+            tempz = -tempz/cwp/dz !z=ct-z
 
             if ((tempx>=1) .and. tempx<=(nx-1) .and. (tempy >= edges(1))& !是用来判断粒子是否属于当前这个分区的。
             & .and. (tempy < edges(2)) .and. (tempz >= edges(3)) .and. (t& !因为是并行程序，每个核负责空间里面的一块儿
@@ -866,7 +866,7 @@
             endif     
          enddo
          
-         npp = nps - 1
+         npp = nps - 1 !当前核粒子数
          close(85)
 
          if (ierr /= 0) then
